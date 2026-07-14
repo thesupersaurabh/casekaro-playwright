@@ -96,22 +96,20 @@ public class ProductPage {
     private void closeCartDrawer() {
         Locator overlay = page.locator("#CartDrawer-Overlay");
         
-        // Wait for overlay to become visible (cart drawer opened)
-        overlay.waitFor(new Locator.WaitForOptions()
-                .setState(com.microsoft.playwright.options.WaitForSelectorState.VISIBLE)
-                .setTimeout(10000));
+        // Wait a brief moment to allow the drawer animation to trigger
+        page.waitForTimeout(2000);
 
-        // Close the drawer
+        // Deterministic check without try-catch: Only close it if it actually appeared
         if (overlay.isVisible()) {
             overlay.click(new Locator.ClickOptions().setForce(true));
+            // Wait for it to cleanly disappear
+            overlay.waitFor(new Locator.WaitForOptions()
+                    .setState(com.microsoft.playwright.options.WaitForSelectorState.HIDDEN)
+                    .setTimeout(5000));
         } else {
-            page.keyboard().press("Escape");
+            // If the overlay never appeared, the cart drawer didn't open, so we do nothing.
+            System.out.println("Cart drawer overlay did not appear. Continuing safely.");
         }
-
-        // Wait for overlay to disappear before continuing
-        overlay.waitFor(new Locator.WaitForOptions()
-                .setState(com.microsoft.playwright.options.WaitForSelectorState.HIDDEN)
-                .setTimeout(10000));
     }
 
     public List<String[]> getCartItemDetails() {

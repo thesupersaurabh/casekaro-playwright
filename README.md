@@ -3,7 +3,7 @@
 An enterprise-grade End-to-End (E2E) automation testing framework for the CaseKaro e-commerce platform.
 
 ## 🚀 Technology Stack
-*   **Java 25**: Core programming language.
+*   **Java 17**: Core programming language.
 *   **Playwright (Java)**: Modern, blazing-fast browser automation library.
 *   **Cucumber (BDD)**: Allows writing test scenarios in plain English (Gherkin).
 *   **JUnit 4**: Test execution engine.
@@ -18,7 +18,7 @@ This project strictly adheres to the **Page Object Model (POM)** design pattern.
 ## 🛠️ How to Run Locally
 
 ### Prerequisites
-*   Java Development Kit (JDK) 25 or higher installed.
+*   Java Development Kit (JDK) 17 or higher installed.
 *   Maven installed.
 
 ### Execution
