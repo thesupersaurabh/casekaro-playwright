@@ -34,7 +34,10 @@ public class PlaywrightFactory {
                 break;
         }
 
-        browserThreadLocal.set(browserType.launch(new BrowserType.LaunchOptions().setHeadless(false)));
+        // Make headless mode dynamic. Default to 'false' (headed) for local Mac execution, 
+        // but allow Docker/CI to override it to 'true' via Environment Variables.
+        boolean isHeadless = Boolean.parseBoolean(System.getenv().getOrDefault("HEADLESS", "false"));
+        browserThreadLocal.set(browserType.launch(new BrowserType.LaunchOptions().setHeadless(isHeadless)));
         
         // --- ENTERPRISE QA BEST PRACTICE ---
         // Video recording is amazing for debugging, but in real enterprise projects, 
