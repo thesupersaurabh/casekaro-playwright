@@ -9,11 +9,39 @@ An enterprise-grade End-to-End (E2E) automation testing framework for the CaseKa
 *   **JUnit 4**: Test execution engine.
 *   **Maven**: Dependency management and build tool.
 
+## 📖 What This Framework Does (Plain English)
+This project is built using **Behavior-Driven Development (BDD)**. This means the tests are designed so that anyone—even non-programmers—can read and understand exactly what is being automated.
+
+When the test runs, the robot does the following:
+1. Opens `casekaro.com`.
+2. Navigates to the Mobile Covers section and searches for **Apple**.
+3. Confirms that only Apple devices appear (and filters out Samsung, OnePlus, etc.).
+4. Searches specifically for an **iPhone 16 Pro** case.
+5. Adds three different materials (`Hard`, `Soft`, `Glass`) to the cart.
+6. Opens the cart and verifies that there are exactly 3 items.
+7. Extracts the final price, material, and URL of each item and prints it out.
+
+By reading the `casekaro.feature` file, anyone can verify this exact business logic in plain English.
+
 ## 🏗️ Architecture Design (Page Object Model)
 This project strictly adheres to the **Page Object Model (POM)** design pattern.
 *   **Separation of Concerns**: HTML locators and page-specific logic are encapsulated in `src/test/java/pages/`.
 *   **BDD Step Definitions**: English test steps are translated to Java methods in `src/test/java/stepdefinitions/`.
 *   **Thread Safety**: Browser instances are isolated using `ThreadLocal` in `PlaywrightFactory.java` to support safe parallel execution.
+
+## 📁 Project Structure
+```text
+casekaro-playwright/
+├── src/test/java/
+│   ├── pages/                 # Page Object classes (locators & UI actions)
+│   ├── runner/                # JUnit TestRunner configuration
+│   ├── stepdefinitions/       # Cucumber step definitions mapping BDD to Java
+│   └── utils/                 # PlaywrightFactory (ThreadLocal browser init)
+├── src/test/resources/
+│   └── features/              # Cucumber .feature files (Gherkin scenarios)
+├── Dockerfile                 # Containerized execution environment
+└── pom.xml                    # Maven dependencies (Java 17 target)
+```
 
 ## 🛠️ How to Run Locally
 
