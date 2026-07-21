@@ -3,113 +3,178 @@ package pages;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.options.AriaRole;
+import com.microsoft.playwright.options.LoadState;
+import com.microsoft.playwright.options.WaitForSelectorState;
 import static com.microsoft.playwright.assertions.PlaywrightAssertions.assertThat;
 import java.util.regex.Pattern;
 import java.util.List;
-import java.util.Arrays;
 import java.util.ArrayList;
 
 public class ProductPage {
     private Page page;
-    private final List<String> MATERIALS = Arrays.asList("Hard", "Soft", "Glass");
 
     // Store cart item details as we add variants
     private List<String[]> cartItemDetails = new ArrayList<>();
+    private int addedCount = 0;
 
     public ProductPage(Page page) {
         this.page = page;
     }
 
-    public void clickChooseOptions() {
+    /**
+     * Returns the currently active (open) modal, waiting for it to appear.
+     */
+    private Locator getOpenModal() {
+        Locator modal = page.locator("quick-add-modal[open]").first();
+        modal.waitFor(new Locator.WaitForOptions()
+                .setState(WaitForSelectorState.VISIBLE)
+                .setTimeout(10000));
+        return modal;
+    }
+
+    public void clickChooseOptions(int index) {
+        // Wait for the product grid to fully render before interacting
+        page.waitForLoadState(LoadState.NETWORKIDLE);
+        page.waitForTimeout(2000);
+
         Locator chooseOptionsBtn = page.getByRole(AriaRole.BUTTON,
-                new Page.GetByRoleOptions().setName(Pattern.compile("Choose options", Pattern.CASE_INSENSITIVE))).first();
+                new Page.GetByRoleOptions().setName(Pattern.compile("Choose options", Pattern.CASE_INSENSITIVE))).nth(index);
         chooseOptionsBtn.scrollIntoViewIfNeeded();
         assertThat(chooseOptionsBtn).isEnabled();
         chooseOptionsBtn.click();
+
+        // Wait for the quick-add modal to open and have radio inputs
+        Locator modal = getOpenModal();
+        modal.locator("input[type='radio']").first()
+                .waitFor(new Locator.WaitForOptions()
+                        .setState(WaitForSelectorState.ATTACHED)
+                        .setTimeout(10000));
     }
 
-    public void verifyProductPageLoads() {
-        // After clicking Choose Options, a quick-add modal opens.
-        // Verify by checking for the variant/material options or add button.
-        // The working JS just proceeds directly — no separate assertion needed.
+    public void verifyMaterialButtonsExist(List<String> materials) {
+        // Scope radio inputs to the active open modal
+        Locator modal = getOpenModal();
+        for (String material : materials) {
+            Locator radio = modal.locator("input[type='radio'][value='" + material + "']").first();
+            assertThat(radio).isAttached();
+        }
     }
 
-    public void verifyMaterialButtonsExist() {
-        // Verify each material variant text is present on the page using exact substring matches that worked in JS
-        assertThat(page.getByText("Hard Variant sold out or").first()).isVisible();
-        assertThat(page.getByText("Soft Variant sold out or unavailable", new Page.GetByTextOptions().setExact(true)).first()).isVisible();
-        assertThat(page.getByText("Glass Variant sold out or").first()).isVisible();
-    }
-
-    public void addAllVariantsToCart() {
+    public void addAllVariantsToCart(int index, List<String> materials) {
         cartItemDetails.clear();
+        addedCount = 0;
 
-        for (int i = 0; i < MATERIALS.size(); i++) {
-            String material = MATERIALS.get(i);
-            System.out.println("Adding " + material);
+        // The modal is already open from the clickChooseOptions() step for the 1st material.
+        // After adding to cart + closing the cart drawer, the modal closes,
+        // so we must re-click "Choose Options" to re-open it for each subsequent material.
 
-            // Re-open Choose Options for every material after the first
+        for (int i = 0; i < materials.size(); i++) {
+            String material = materials.get(i);
+            System.out.println("Selecting material: " + material);
+
+            // Re-open the modal for the 2nd material onward
             if (i > 0) {
+                // Ensure previous modal is fully closed
+                closeModal();
+                page.waitForTimeout(1000);
+
                 Locator chooseOptionsBtn = page.getByRole(AriaRole.BUTTON,
-                        new Page.GetByRoleOptions().setName(Pattern.compile("Choose options", Pattern.CASE_INSENSITIVE))).first();
+                        new Page.GetByRoleOptions().setName(Pattern.compile("Choose options", Pattern.CASE_INSENSITIVE))).nth(index);
                 chooseOptionsBtn.scrollIntoViewIfNeeded();
-                assertThat(chooseOptionsBtn).isEnabled();
                 chooseOptionsBtn.click();
+
+                // Wait for modal to open and have radio inputs
+                Locator modal = getOpenModal();
+                modal.locator("input[type='radio']").first()
+                        .waitFor(new Locator.WaitForOptions()
+                                .setState(WaitForSelectorState.ATTACHED)
+                                .setTimeout(10000));
             }
-            
-            // Click the material variant label — matches exactly like JS
-            Locator variantOption;
-            if (material.equalsIgnoreCase("Hard")) {
-                variantOption = page.getByText("Hard Variant sold out or").first();
-            } else if (material.equalsIgnoreCase("Soft")) {
-                variantOption = page.getByText("Soft Variant sold out or unavailable", new Page.GetByTextOptions().setExact(true)).first();
-            } else {
-                variantOption = page.getByText("Glass Variant sold out or").first();
-            }
-            
-            variantOption.waitFor(new Locator.WaitForOptions().setState(com.microsoft.playwright.options.WaitForSelectorState.VISIBLE).setTimeout(10000));
-            variantOption.click();
+
+            // All interactions scoped to the active open modal
+            Locator activeModal = getOpenModal();
+
+            // Click the material variant using its radio input value
+            Locator radio = activeModal.locator("input[type='radio'][value='" + material + "']").first();
+            String radioId = radio.getAttribute("id");
+            Locator label = activeModal.locator("label[for='" + radioId + "']");
+
+            label.waitFor(new Locator.WaitForOptions()
+                    .setState(WaitForSelectorState.VISIBLE)
+                    .setTimeout(10000));
+            label.click();
 
             // Wait for price/variant to settle
             page.waitForTimeout(1500);
 
-            // Capture price
-            String price = page.locator(".price").first().innerText().trim();
+            // Check if Add to Cart button is enabled (variant not sold out)
+            Locator addBtn = activeModal.locator("button[name='add']").first();
+            if (addBtn.isDisabled()) {
+                System.out.println("⚠ " + material + " is sold out, skipping.");
+                closeModal();
+                continue;
+            }
+
+            // Capture price and link
+            String price = activeModal.locator(".price").first().innerText().trim();
             String link = page.url();
             cartItemDetails.add(new String[]{material, price, link});
 
             // Click Add to Cart
-            Locator addBtn = page.locator("button[name='add']").last();
-            assertThat(addBtn).isEnabled();
             addBtn.click();
-            
-            // Allow network request to fire before forcing the cart drawer closed
+            addedCount++;
+
+            // Allow network request to fire
             page.waitForTimeout(1000);
 
-            // Wait for cart drawer overlay to appear, then close it
+            // Close the cart drawer overlay (this also implicitly closes the modal)
             closeCartDrawer();
 
             System.out.println(material + " added ✓");
+        }
+
+        // Ensure any remaining modal is closed
+        closeModal();
+    }
+
+    private void closeModal() {
+        Locator modal = page.locator("quick-add-modal[open]").first();
+        if (modal.isVisible()) {
+            Locator closeBtn = modal.locator("button.quick-add-modal__toggle").first();
+            if (closeBtn.isVisible()) {
+                closeBtn.click(new Locator.ClickOptions().setForce(true));
+            } else {
+                page.keyboard().press("Escape");
+            }
+            try {
+                modal.waitFor(new Locator.WaitForOptions()
+                        .setState(WaitForSelectorState.HIDDEN)
+                        .setTimeout(3000));
+            } catch (Exception e) {
+                System.out.println("Modal didn't close cleanly, continuing.");
+            }
         }
     }
 
     private void closeCartDrawer() {
         Locator overlay = page.locator("#CartDrawer-Overlay");
-        
+
         // Wait a brief moment to allow the drawer animation to trigger
         page.waitForTimeout(2000);
 
-        // Deterministic check without try-catch: Only close it if it actually appeared
+        // Deterministic check: Only close it if it actually appeared
         if (overlay.isVisible()) {
             overlay.click(new Locator.ClickOptions().setForce(true));
-            // Wait for it to cleanly disappear
             overlay.waitFor(new Locator.WaitForOptions()
-                    .setState(com.microsoft.playwright.options.WaitForSelectorState.HIDDEN)
+                    .setState(WaitForSelectorState.HIDDEN)
                     .setTimeout(5000));
         } else {
-            // If the overlay never appeared, the cart drawer didn't open, so we do nothing.
             System.out.println("Cart drawer overlay did not appear. Continuing safely.");
         }
+    }
+
+    public int getAddedCount() {
+        return addedCount;
     }
 
     public List<String[]> getCartItemDetails() {

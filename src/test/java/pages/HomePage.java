@@ -13,7 +13,8 @@ public class HomePage {
     }
 
     public void launchWebsite() {
-        page.navigate("https://casekaro.com/");
+        page.navigate("https://casekaro.com/", 
+                new Page.NavigateOptions().setWaitUntil(com.microsoft.playwright.options.WaitUntilState.DOMCONTENTLOADED).setTimeout(60000));
         assertThat(page).hasTitle(java.util.regex.Pattern.compile(".*Casekaro.*", java.util.regex.Pattern.CASE_INSENSITIVE));
     }
 

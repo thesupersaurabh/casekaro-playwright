@@ -20,16 +20,20 @@ public class MobileCoverPage {
 
     public void scrollToPhoneCasesByModel() {
         // The search box is inside the "Phone cases by model" section.
-        // Scroll to the search textbox itself — this is more reliable than
-        // trying to locate the h1 heading which can be tricky on Shopify themes.
+        // Don't use NETWORKIDLE — Shopify pages have continuous analytics requests.
         Locator searchBox = page.getByRole(AriaRole.TEXTBOX,
-                new Page.GetByRoleOptions().setName(Pattern.compile("Search your phone model", Pattern.CASE_INSENSITIVE)));
+                new Page.GetByRoleOptions()
+                        .setName(Pattern.compile("Search your phone model", Pattern.CASE_INSENSITIVE)));
+        searchBox.waitFor(new Locator.WaitForOptions()
+                .setState(com.microsoft.playwright.options.WaitForSelectorState.VISIBLE)
+                .setTimeout(60000));
         searchBox.scrollIntoViewIfNeeded();
     }
 
     public void searchForPhoneModel(String searchTerm) {
         Locator searchBox = page.getByRole(AriaRole.TEXTBOX,
-                new Page.GetByRoleOptions().setName(Pattern.compile("Search your phone model", Pattern.CASE_INSENSITIVE)));
+                new Page.GetByRoleOptions()
+                        .setName(Pattern.compile("Search your phone model", Pattern.CASE_INSENSITIVE)));
         searchBox.fill(searchTerm);
         // Wait for search results to render via JS
         page.waitForTimeout(1500);
@@ -41,9 +45,10 @@ public class MobileCoverPage {
         page.waitForTimeout(1000);
 
         List<String> linkTexts = visibleLinks.allInnerTexts();
-        
-        // The CaseKaro search returns 0 results for "Apple" because their models are 
-        // named "iPhone 16", etc. If there are no results, we consider it passed as long
+
+        // The CaseKaro search returns 0 results for "Apple" because their models are
+        // named "iPhone 16", etc. If there are no results, we consider it passed as
+        // long
         // as no other brands are shown.
         if (linkTexts.isEmpty()) {
             return;
@@ -100,7 +105,8 @@ public class MobileCoverPage {
 
     public void clickExactMatchFromAutocomplete(String matchText) {
         // Use getByRole("link") with exact match — mirrors the working JS approach.
-        // exact: true prevents matching "iPhone 16 Pro Max" when searching "iPhone 16 Pro"
+        // exact: true prevents matching "iPhone 16 Pro Max" when searching "iPhone 16
+        // Pro"
         Locator exactMatch = page.getByRole(AriaRole.LINK,
                 new Page.GetByRoleOptions().setName(matchText).setExact(true));
         assertThat(exactMatch).isVisible();

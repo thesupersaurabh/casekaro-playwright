@@ -27,16 +27,15 @@ public class CartPage {
         assertThat(cartItems).hasCount(count);
     }
 
-    public void printCartDetails() {
+    public void printCartDetails(List<String> materials) {
         Locator cartItems = page.locator("#CartDrawer .cart-item, #CartDrawer tbody tr");
         int count = cartItems.count();
 
         System.out.println("\n========== CART DETAILS ==========\n");
 
-        // Also verify each material is present
+        // Verify each material is present in cart
         List<String> rowTexts = cartItems.allInnerTexts();
-
-        for (String material : new String[]{"Hard", "Soft", "Glass"}) {
+        for (String material : materials) {
             boolean found = false;
             for (String text : rowTexts) {
                 if (text.contains(material)) {
@@ -45,7 +44,7 @@ public class CartPage {
                 }
             }
             if (!found) {
-                System.out.println("WARNING: Material " + material + " not found in cart rows");
+                System.out.println("WARNING: Material " + material + " not found in cart (may be sold out)");
             }
         }
 
@@ -53,10 +52,14 @@ public class CartPage {
             Locator item = cartItems.nth(i);
             String itemText = item.innerText();
 
-            String material = "";
-            if (itemText.contains("Hard")) material = "Hard";
-            else if (itemText.contains("Soft")) material = "Soft";
-            else if (itemText.contains("Glass")) material = "Glass";
+            // Dynamically detect material from the cart item text
+            String material = "Unknown";
+            for (String mat : materials) {
+                if (itemText.contains(mat)) {
+                    material = mat;
+                    break;
+                }
+            }
 
             // Get price from the cart item
             String price = "N/A";
